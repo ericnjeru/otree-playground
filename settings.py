@@ -4,7 +4,7 @@ SESSION_CONFIGS = [
     dict(
         name='discussion',
         display_name="Otree Discussion",
-        app_sequence=['discussion', 'payment_info'],
+        app_sequence=['discussion'],
         num_demo_participants=4
     ),
 ]
