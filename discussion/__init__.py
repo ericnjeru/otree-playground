@@ -8,6 +8,7 @@ class C(BaseConstants):
     PLAYERS_PER_GROUP = None
     NUM_ROUNDS = 1
 
+
 class Subsession(BaseSubsession):
     pass
 
@@ -40,7 +41,6 @@ def to_dict(post: Post):
 def add_live_method(player: Player, data):
     group = player.group
     if data.get("type") == "add":
-
         content = data.get("message")
         Post.create(content=content, group=group, player=player,
                     created_at=datetime.datetime.strftime(datetime.datetime.now(), '%d/%m/%y %H:%M:%S'))
@@ -70,6 +70,7 @@ class RoomChat(Page):
     @staticmethod
     def js_vars(player: Player):
         return dict(player_id=player.id_in_group)
+
 
 page_sequence = [
     Introduction,
