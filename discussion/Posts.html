@@ -1,0 +1,221 @@
+{{block styles}}
+<link href="{{static 'chat.css'}}" rel="stylesheet"/>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css" id="bootstrap-css" rel="stylesheet">
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" rel="stylesheet"
+      type="text/css"/>
+{{ endblock }}
+{{ block title }}Group discussion{{ endblock }}
+{{ block content }}
+<div id="root"></div>
+
+<div class="container">
+    <div class="messaging">
+        <div class="inbox_msg">
+            <div class="inbox_people">
+                <div class="headind_srch">
+                    <div class="recent_heading">
+                        <h4 class="text-primary">Threads</h4>
+                    </div>
+                    <div class="srch_bar">
+                        <a class="btn btn-primary text-white" onclick="$('#add-post-modal').modal('show')"
+                        > New Post</a>
+                    </div>
+                </div>
+                <div class="inbox_chat" id="thread-list">
+
+                </div>
+            </div>
+            <div class="mesgs">
+                <div class="msg_history" id="chat-history">
+                    <p class="text-center">Select thread</p>
+
+                </div>
+                <div class="type_msg" id="chat-history-reply">
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal -->
+    <div aria-hidden="true" aria-labelledby="add-post-modal" class="modal fade" id="add-post-modal" role="dialog"
+         tabindex="-1">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLongTitle">New Post</h5>
+                    <button aria-label="Close" class="close" data-dismiss="modal" onclick="$('#add-post-modal').modal('hide')"
+                            type="button">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <form class="mt-4" id="post-form">
+                                    <div class="form-group my-4">
+                                        <label for="title">Title</label>
+                                        <input aria-describedby="postTitle" class="form-control" id="title" name="title"
+                                               placeholder="Enter post title"
+                                               type="text">
+                                        <small class="text-danger d-none" id="title-error">Title is required.</small>
+                                    </div>
+                                    <div class="form-group my-4">
+                                        <label for="content">Body</label>
+                                        <textarea class="form-control" id="content" name="content" rows="8"></textarea>
+                                        <small class="text-danger d-none" id="content-error">Body is required.</small>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-dismiss="modal" onclick="$('#add-post-modal').modal('hide')"
+                            type="button">Close
+                    </button>
+                    <button class="btn btn-primary" onclick="publishPost()" type="button">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{block scripts}}
+<script>
+    let threadList = document.getElementById('thread-list');
+    let chatHistoryReply = document.getElementById('chat-history-reply');
+    let chatHistory = document.getElementById('chat-history');
+    let postForm = document.getElementById('post-form');
+    let titleInput = document.getElementById('title');
+    let titleError = document.getElementById('title-error');
+    let contentInput = document.getElementById('content');
+    let contentError = document.getElementById('content-error');
+
+
+    function publishPost() {
+        let title = titleInput.value.trim();
+        if (!title) {
+            titleError.classList.remove("d-none");
+            return;
+        }
+        let content = contentInput.value.trim();
+        if (!content) {
+            contentError.classList.remove("d-none");
+            return;
+        }
+        liveSend({'type': 'add', 'is_post': true, 'title': title, 'content': content});
+        titleInput.value = "";
+        contentInput.value = "";
+        $('#add-post-modal').modal('hide');
+    }
+
+    function publishPostReply(post_unique_id) {
+        let postReplyInput = document.getElementById('post-reply-input');
+        let postReplyInputError = document.getElementById('post-reply-input-error');
+
+        postReplyInputError.classList.add("d-none");
+        let replyMessage = postReplyInput.value.trim();
+        if (!replyMessage) {
+            postReplyInputError.classList.remove("d-none");
+            return;
+        }
+
+        liveSend({'type': 'add', 'is_post': false, 'post_unique_id': post_unique_id, 'content': replyMessage});
+        postReplyInput.value = "";
+    }
+
+    function renderThreads(posts) {
+        console.log(posts)
+        threadList.innerHTML = '';
+        let row = ''
+        if (posts?.length === 0) {
+            row = `  <p class="text-center">Posts will appear here</p>`;
+            threadList.insertAdjacentHTML('beforeend', row)
+        } else {
+            for (let post of posts) {
+
+                row = `
+                         <div class="chat_list active_chat" onclick="getPostReplies('${post?.unique_id}')">
+              <div class="chat_people">
+                <div class="chat_img">   <img src="{{static 'discussion.svg'}}" alt="avatar"> </div>
+                <div class="chat_ib">
+                  <h5 class="text-primary">${post?.title}</h5>
+                  <div>
+                  <span>By ${post?.player_name}, </span>
+                  <span> ${post?.no_of_replies} replies</span>
+                  <span class="float-end">${post?.created_at}</span></div>
+                </div>
+              </div>
+            </div>
+                    `;
+                threadList.insertAdjacentHTML('beforeend', row)
+            }
+        }
+
+    }
+
+    function renderChatHistory(parentPost, postReplies) {
+        if (!parentPost && postReplies?.length == 0) {
+            chatHistory.insertAdjacentHTML('beforeend', `<p class="text-center">Select thread</p>`);
+            return;
+        }
+        chatHistoryReply.innerHTML = "";
+        chatHistory.innerHTML = "";
+        let parentPostRow = `
+                        <div class="incoming_msg" >
+                        <h4 class="text-primary" id="chat-history-title">${parentPost.title}</h4>
+                          <div class="received_msg">
+                            <div class="received_withd_msg">
+                              <p>${parentPost.content}</p> <span class="time_date">
+                         By <strong>${parentPost.player_name}</strong>, ${parentPost.created_at}</span>
+
+                          </div>
+                        </div>`;
+        chatHistory.insertAdjacentHTML('beforeend', parentPostRow);
+
+        for (let post of postReplies) {
+            let row = "";
+            row = `
+               <div class="outgoing_msg">
+              <div class="sent_msg">
+                <p>${post.content}</p>
+                <span class="time_date"> By <strong>${post.player_name}</strong>,  ${post.created_at}</span> </div>
+            </div>`;
+            chatHistory.insertAdjacentHTML('beforeend', row)
+        }
+        let replyRow = `
+
+                    <div class="input_msg_write">
+                        <input type="text" class="write_msg" id="post-reply-input" placeholder="Type a reply"/>
+                        <button class="msg_send_btn" type="button"  onclick="publishPostReply('${parentPost?.unique_id}')"
+                                id="post-reply-btn"><i class="fa fa-paper-plane-o"
+                                                                      aria-hidden="true"></i></button>
+                    </div>
+                     <small class="text-danger d-none" id="post-reply-input-error">Cant be empty.</small>
+`
+        chatHistoryReply.insertAdjacentHTML('beforeend', replyRow)
+    }
+
+    function getPostReplies(id) {
+        console.log(id)
+        liveSend({'type': 'load', 'is_post': false, 'post_unique_id': id});
+    }
+
+    function liveRecv(data) {
+        if (data.is_post) {
+            renderThreads(data?.posts)
+        } else {
+            renderChatHistory(data?.parent_post, data?.replies)
+        }
+
+    }
+
+    document.addEventListener("DOMContentLoaded", function (event) {
+        liveSend({'type': 'load', 'is_post': true});
+    });
+</script>
+{{ endblock }}
+
+{{ endblock }}
