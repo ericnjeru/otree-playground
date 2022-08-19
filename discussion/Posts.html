@@ -44,7 +44,8 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="exampleModalLongTitle">New Post</h5>
-                    <button aria-label="Close" class="close" data-dismiss="modal" onclick="$('#add-post-modal').modal('hide')"
+                    <button aria-label="Close" class="close" data-dismiss="modal"
+                            onclick="$('#add-post-modal').modal('hide')"
                             type="button">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -87,7 +88,6 @@
     let threadList = document.getElementById('thread-list');
     let chatHistoryReply = document.getElementById('chat-history-reply');
     let chatHistory = document.getElementById('chat-history');
-    let postForm = document.getElementById('post-form');
     let titleInput = document.getElementById('title');
     let titleError = document.getElementById('title-error');
     let contentInput = document.getElementById('content');
@@ -137,7 +137,7 @@
             for (let post of posts) {
 
                 row = `
-                         <div class="chat_list active_chat" onclick="getPostReplies('${post?.unique_id}')">
+                         <div class="chat_list " onclick="setActiveThread(this);getPostReplies('${post?.unique_id}')">
               <div class="chat_people">
                 <div class="chat_img">   <img src="{{static 'discussion.svg'}}" alt="avatar"> </div>
                 <div class="chat_ib">
@@ -157,7 +157,7 @@
     }
 
     function renderChatHistory(parentPost, postReplies) {
-        if (!parentPost && postReplies?.length == 0) {
+        if (!parentPost && postReplies?.length === 0) {
             chatHistory.insertAdjacentHTML('beforeend', `<p class="text-center">Select thread</p>`);
             return;
         }
@@ -199,8 +199,14 @@
     }
 
     function getPostReplies(id) {
-        console.log(id)
         liveSend({'type': 'load', 'is_post': false, 'post_unique_id': id});
+    }
+
+    function setActiveThread(e) {
+        Array.from(document.querySelectorAll('.active_chat')).forEach(function (el) {
+            el.classList.remove('active_chat');
+        });
+        e.classList.add('active_chat')
     }
 
     function liveRecv(data) {
