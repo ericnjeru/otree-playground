@@ -1,4 +1,5 @@
 import datetime
+import json
 import uuid
 from otree.api import *
 
@@ -14,7 +15,7 @@ class Subsession(BaseSubsession):
 
 
 class Group(BaseGroup):
-    pass
+    group_thread = models.LongStringField()
 
 
 class Player(BasePlayer):
@@ -63,31 +64,27 @@ def post_reply_to_dict(post: PostReply):
     )
 
 
-# FUNCTIONS
-def add_live_method(player: Player, data):
-    group = player.group
-    if data.get("type") == "add":
-        title = data.get("title")
-        content = data.get("content")
-        Post.create(title=title, content=content, group=group, player=player,
-                    created_at=datetime.datetime.strftime(datetime.datetime.now(), '%d/%m/%y %H:%M:%S'))
-        posts = Post.filter(group=group)
-
-        return {0: dict(
-            posts=[post_to_dict(item) for item in posts],
-            no_of_posts=len(posts),
-        )}
-    if data.get("type") == "load":
-        posts = Post.filter(group=group)
-        return {0: dict(
-            posts=[post_to_dict(item) for item in posts],
-            no_of_posts=len(posts),
-        )}
+def store_group_thread(posts, group):
+    thread = []
+    for post in posts:
+        replies = PostReply.filter(group=group, post_unique_id=post.unique_id)
+        thread.append(dict(
+            title=post.title,
+            content=post.content,
+            player_name=post.player.name,
+            created_at=post.created_at,
+            replies=[dict(
+                content=reply.content,
+                player_name=reply.player.name,
+                created_at=reply.created_at,
+            ) for reply in replies]
+        )
+        )
+    group.group_thread = json.dumps(thread)
 
 
 def new_post_live_method(player: Player, data):
     group = player.group
-    # print(data.get("is_post"))
     if data.get("type") == "add":
         if data.get("is_post"):
             title = data.get("title")
@@ -96,13 +93,14 @@ def new_post_live_method(player: Player, data):
                         unique_id=str(uuid.uuid4()),
                         created_at=datetime.datetime.strftime(datetime.datetime.now(), '%d/%m/%y %H:%M:%S'))
             posts = Post.filter(group=group)
-            # print(posts)
+            store_group_thread(posts, group)
             return {0: dict(
                 is_post=True,
                 posts=[post_to_dict(item) for item in posts],
                 no_of_posts=len(posts),
             )}
         else:
+            # add reply
             content = data.get("content")
             post_unique_id = data.get("post_unique_id")
             PostReply.create(content=content, group=group, player=player,
@@ -110,7 +108,9 @@ def new_post_live_method(player: Player, data):
                              created_at=datetime.datetime.strftime(datetime.datetime.now(), '%d/%m/%y %H:%M:%S'))
             replies = PostReply.filter(group=player.group, post_unique_id=post_unique_id)
             parent_post = Post.filter(group=player.group, unique_id=post_unique_id)[0]
-            # print({"replies": replies})
+
+            posts = Post.filter(group=group)
+            store_group_thread(posts, group)
             return {0: dict(
                 is_post=False,
                 replies=[post_reply_to_dict(item) for item in replies],
@@ -120,6 +120,7 @@ def new_post_live_method(player: Player, data):
     if data.get("type") == "load":
         if data.get("is_post"):
             posts = Post.filter(group=group)
+            store_group_thread(posts, group)
             return {0: dict(
                 is_post=True,
                 posts=[post_to_dict(item) for item in posts],
@@ -129,7 +130,9 @@ def new_post_live_method(player: Player, data):
             post_unique_id = data.get("post_unique_id")
             replies = PostReply.filter(group=player.group, post_unique_id=post_unique_id)
             parent_post = Post.filter(group=player.group, unique_id=post_unique_id)[0]
-            # print({"replies": replies})
+
+            posts = Post.filter(group=group)
+            store_group_thread(posts, group)
             return {0: dict(
                 is_post=False,
                 replies=[post_reply_to_dict(item) for item in replies],
@@ -144,10 +147,6 @@ class Introduction(Page):
 
 
 class Posts(Page):
-    live_method = new_post_live_method
-
-
-class NewPost(Page):
     live_method = new_post_live_method
 
 
